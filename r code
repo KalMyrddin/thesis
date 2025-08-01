@@ -1,1 +1,297 @@
+#Mono Population Analysis
 
+md_type_table <- table(MonoMD$md_type)
+md_type_df <- data.frame(
+    MD_type = c("Affective Disorder", "Bipolar Disorder", "MDD", "PDD", "Schizoaffective disorder"),
+    Count = as.numeric(md_type_table),
+    Percentage = round(as.numeric(md_type_table) / sum(md_type_table) * 100, 1)
+)
+
+race_table <- table(Population$race)
+race_df <- data.frame(
+    Race = c("Asian", "Black", "Hispanic", "Other", "White"),
+    Count = as.numeric(race_table),
+    Percentage = round(as.numeric(race_table) / sum(race_table) * 100, 1)
+)
+
+gender_table <- table(Population$gender)
+gender_df <- data.frame(
+    Gender = c("Female", "Male"),
+    Count = as.numeric(gender_table),
+    Percentage = round(as.numeric(gender_table) / sum(gender_table) * 100, 1)
+)
+
+age_stats <- summary(as.numeric(Population$anchor_age))
+
+age_stats_monoonly <- summary(as.numeric(MonoOnly$anchor_age))
+
+age_stats_monomd <- summary(as.numeric(MonoMD$anchor_age))
+
+post_mono_MDs <- sum(MonoMD$mono_time == 'Before', na.rm = TRUE)
+
+pre_mono_MDs <- sum(MonoMD$mono_time == 'After', na.rm = TRUE)
+
+depressive_count <- sum(MonoMD$md_group == 'Depressive', na.rm = TRUE)
+
+MonoMD_race <- table(MonoMD$race)
+
+MonoOnly_race <- table(MonoOnly$race)
+
+race_data_mono <- data.frame(
+    race = c(MonoMD$race, MonoOnly$race),
+    cohort = c(rep("MD+", length(MonoMD$race)), rep("MD-", length(MonoOnly$race)))
+)
+
+race_table_mono <- table(race_data_mono$race, race_data_mono$cohort)
+
+MonoMD_gender <- table(MonoMD$gender)
+
+MonoOnly_gender <- table(MonoOnly$gender)
+
+gender_data_mono <- data.frame(
+    gender = c(MonoMD$gender, MonoOnly$gender),
+    cohort = c(rep("MD+", length(MonoMD$gender)), rep("MD-", length(MonoOnly$gender)))
+)
+
+gender_table_mono <- table(gender_data_mono$gender, gender_data_mono$cohort)
+
+x_total_mds <- 56
+
+x_total_depressive <- 48
+
+n_total_mono <- 249
+
+n_total_mds <- 56
+
+observed_proportion_total_mds <- 56/249
+
+observed_proportion_total_depressive <- 48/249
+
+null_proportion_total_mds <- 0.214
+
+null_proportion_total_depressive <- 0.083
+
+proportion_test_total_mds <- prop.test(x = x_total_mds, n = n_total_mono, p = null_proportion_total_mds, alternative = "two.sided")
+
+confidence_total_mds <- proportion_test_total_mds$conf.int
+
+proportion_test_depressive <- prop.test(x = x_total_depressive <- 48, n = n_total_mono, p = null_proportion_total_depressive, alternative = "two.sided")
+
+confidence_total_depressive <- proportion_test_depressive$conf.int
+
+GTest(race_table_mono, correct = c("williams"),
+      p = rep(1/length(x), length(x)), rescale.p = FALSE)
+
+GTest(gender_table_mono, correct = c("williams"),
+      p = rep(1/length(x), length(x)), rescale.p = FALSE)
+
+MonoMD_exclusive <- MonoMD[MonoMD$mono_time=="Before"|MonoMD$mono_time=="After",]
+
+female_inc_mono_df <- MonoMD[MonoMD$gender=="F",]
+
+female_inc_mono_table <- table(female_inc_mono_df$mono_time)
+
+female_inc_mono_prop <- prop.table(female_inc_mono_table) * 100
+
+female_mono_df <- MonoMD_exclusive[MonoMD_exclusive$gender=="F",]
+
+female_mono_table <- table(female_mono_df$mono_time)
+
+female_mono_prop <- prop.table(female_mono_table) * 100
+
+chi_inc_female_mono <- chisq.test(female_inc_mono_prop)
+
+chi_female_mono <- chisq.test(female_mono_prop)
+
+age_female_inc_mono_df <- summary(as.numeric(female_inc_mono_df$anchor_age))
+
+MonoMD$anchor_age <- as.numeric(MonoMD$anchor_age)
+
+MonoOnly$anchor_age <- as.numeric(MonoOnly$anchor_age)
+
+age_data_mono <- data.frame(
+    age = c(MonoMD$anchor_age, MonoOnly$anchor_age),
+    group = c(rep("MD+", length(MonoMD$anchor_age)), 
+              rep("MD-", length(MonoOnly$anchor_age)))
+)
+
+ggplot(age_data_mono, aes(x = group, y = age, fill = group)) +
+    geom_boxplot() +
+    theme_minimal() +
+    labs(title = "Mono Population Age",
+         y = "Age",
+         x = "Cohort") +
+    theme(legend.position = "none")
+
+ggbetweenstats(
+    data = age_data_mono,
+    title = "Mono Population Age Distribution Comparison",
+    x = group,
+    y = age,
+    type = "nonparametric", # ANOVA or Kruskal-Wallis
+    plot.type = "box",
+    pairwise.comparisons = TRUE,
+    pairwise.display = "significant",
+    centrality.plotting = FALSE,
+    bf.message = FALSE
+)
+
+#Cohort-Specific Analysis
+
+MonoMD_exclusive$mono_dx_date <- as.Date(MonoMD_exclusive$mono_dx_date)
+MonoMD_exclusive$md_event_date <- as.Date(MonoMD_exclusive$md_event_date)
+
+MonoMD_exclusive$days_from_mono_to_md <- as.numeric(MonoMD_exclusive$md_event_date - MonoMD_exclusive$mono_dx_date)
+
+avg_days_before <- mean(MonoMD_exclusive$days_from_mono_to_md[MonoMD_exclusive$mono_time == 'Before'], na.rm = TRUE)
+
+avg_days_after <- mean(MonoMD_exclusive$days_from_mono_to_md[MonoMD_exclusive$mono_time == 'After'], na.rm = TRUE)
+
+other_removed_mds <- MonoMD_exclusive[MonoMD_exclusive$md_group=="Bipolar"|MonoMD_exclusive$md_group=="Depressive",]
+
+time_freq_exclusive <- table(MonoMD_exclusive$mono_time)
+
+time_percent_exclusive <- prop.table(time_freq_exclusive) * 100
+
+print(round(time_percent_exclusive, 2))
+
+chi_timing_exclusive <- chisq.test(time_freq_exclusive)
+
+exclusive_contingency_MD_group <- table(MonoMD_exclusive$md_group, MonoMD_exclusive$mono_time)
+
+exclusive_contingency_MD_type <- table(MonoMD_exclusive$mono_time, MonoMD_exclusive$md_type)
+
+fisher_test_md_group_internal <- fisher.test(exclusive_contingency_MD_group)
+
+fisher_test_md_type_internal <- fisher.test(exclusive_contingency_MD_type)
+
+ggplot(MonoMD_exclusive, aes(x = mono_time, fill = md_group)) +
+     geom_bar(position = "fill") +
+     labs(title = "Distribution of MD Groups by Timing",
+          y = "Proportion",
+          x = "Timing relative to Mono") +
+     theme_minimal()
+
+ggplot(MonoMD_exclusive, aes(x = mono_time, fill = md_type)) +
+    geom_bar(position = "fill") +
+    labs(title = "Distribution of MD Types by Timing",
+         y = "Proportion",
+         x = "Timing relative to Mono") +
+    theme_minimal()
+
+run_fisher_analysis <- function(data, var1, var2, dataset_name) {
+    cont_table <- table(data[[var1]], data[[var2]])
+    fisher_test <- fisher.test(cont_table, simulate.p.value = TRUE, B = 10000)
+    print(cont_table)
+    print(fisher_test)
+    percent_table <- prop.table(cont_table, margin = 1) * 100
+    print(round(percent_table, 2))
+}
+
+run_fisher_analysis(MonoMD_exclusive, "race", "mono_time")
+
+run_fisher_analysis(MonoMD_exclusive, "race", "md_group")
+
+run_fisher_analysis(other_removed_mds, "race", "md_group")
+
+run_fisher_analysis(MonoMD_exclusive, "race", "md_type")
+
+run_fisher_analysis(other_removed_mds, "race", "md_type")
+
+run_fisher_analysis(MonoMD_exclusive, "race", "gender")
+
+run_fisher_analysis(MonoMD_exclusive, "gender", "mono_time")
+
+run_fisher_analysis(MonoMD_exclusive, "gender", "md_group")
+
+run_fisher_analysis(other_removed_mds, "gender", "md_group")
+
+run_fisher_analysis(MonoMD_exclusive, "gender", "md_type")
+
+run_fisher_analysis(other_removed_mds, "gender", "md_type")
+
+run_fisher_analysis(MonoMD_exclusive, "mono_time", "md_group")
+
+run_fisher_analysis(other_removed_mds, "mono_time", "md_group")
+
+run_fisher_analysis(MonoMD_exclusive, "mono_time", "md_type")
+
+run_fisher_analysis(other_removed_mds, "mono_time", "md_type")
+
+ggbetweenstats(
+    data = MonoMD_exclusive,
+title = "Mono Timing/Age Distribution Comparison",
+    x = mono_time,
+    y = anchor_age,
+    type = "nonparametric", # ANOVA or Kruskal-Wallis
+    plot.type = "box",
+    pairwise.comparisons = TRUE,
+    pairwise.display = "significant",
+    centrality.plotting = FALSE,
+    bf.message = FALSE
+)
+
+ggbetweenstats(
+    data = MonoMD_exclusive,
+title = "MD Group/Age Distribution Comparison",
+    x = md_group,
+    y = anchor_age,
+    type = "nonparametric", # ANOVA or Kruskal-Wallis
+    plot.type = "box",
+    pairwise.comparisons = TRUE,
+    pairwise.display = "significant",
+    centrality.plotting = FALSE,
+    bf.message = FALSE
+)
+
+ggbetweenstats(
+    data = other_removed_mds,
+title = "MD Group/Age Distribution Comparison (-other)",
+    x = md_group,
+    y = anchor_age,
+    type = "nonparametric", # ANOVA or Kruskal-Wallis
+    plot.type = "box",
+    pairwise.comparisons = TRUE,
+    pairwise.display = "significant",
+    centrality.plotting = FALSE,
+    bf.message = FALSE
+)
+
+ggbetweenstats(
+    data = MonoMD_exclusive,
+title = "MD Type/Age Distribution Comparison",
+    x = md_type,
+    y = anchor_age,
+    type = "nonparametric", # ANOVA or Kruskal-Wallis
+    plot.type = "box",
+    pairwise.comparisons = TRUE,
+    pairwise.display = "significant",
+    centrality.plotting = FALSE,
+    bf.message = FALSE
+)
+
+ggbetweenstats(
+    data = other_removed_mds,
+title = "MD Type/Age Distribution Comparison (-other)",
+    x = md_type,
+    y = anchor_age,
+    type = "nonparametric", # ANOVA or Kruskal-Wallis
+    plot.type = "box",
+    pairwise.comparisons = TRUE,
+    pairwise.display = "significant",
+    centrality.plotting = FALSE,
+    bf.message = FALSE
+)
+
+ggbetweenstats(
+    data = MonoMD,
+title = "Mono Timing/Age Distribution Comparison (+During)",
+    x = mono_time,
+    y = anchor_age,
+    type = "nonparametric", # ANOVA or Kruskal-Wallis
+    plot.type = "box",
+    pairwise.comparisons = TRUE,
+    pairwise.display = "significant",
+    centrality.plotting = FALSE,
+    bf.message = FALSE
+)
